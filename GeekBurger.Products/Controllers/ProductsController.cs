@@ -19,7 +19,9 @@ namespace GeekBurger.Products.Controllers
         private IProductsRepository _productsRepository;
         private IMapper _mapper;
 
-        public ProductsController(IProductsRepository productsRepository, IMapper mapper)
+        public ProductsController(
+            IProductsRepository productsRepository,
+            IMapper mapper)
         {
             _productsRepository = productsRepository;
             _mapper = mapper;
@@ -46,16 +48,12 @@ namespace GeekBurger.Products.Controllers
 
             var product = _mapper.Map<Product>(productToAdd);
 
-            //if (product.StoreId == Guid.Empty)
-            //    return new
-            //        Helper.UnprocessableEntityResult(ModelState);
-
             _productsRepository.Add(product);
             _productsRepository.Save();
             var productToGet = _mapper.Map<ProductDto>(product);
 
             return CreatedAtRoute("GetProduct",
-                new { id = productToGet.ProductId },
+                new { id = productToGet.Id },
                 productToGet);
         }
 
