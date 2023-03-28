@@ -1,41 +1,32 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AutoMapper;
 using GeekBurger.Products.Contract;
-using GeekBurger.Products.Contract.Dto;
-using GeekBurger.Products.Contract.Repositories;
-using Microsoft.AspNetCore.Http;
+using GeekBurger.Products.Models;
+using GeekBurger.Products.Repositories;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekBurger.Products.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-
-    public class ProductsController : Controller
+    [Route("api/product")]
+    public class ProductController : Controller
     {
         private IProductsRepository _productsRepository;
         private IMapper _mapper;
 
-        public ProductsController(IProductsRepository productsRepository, IMapper mapper)
+        public ProductController(IProductsRepository productsRepository, IStoreRepository storeRepository, IMapper mapper)
         {
             _productsRepository = productsRepository;
             _mapper = mapper;
         }
 
-        [HttpGet()]
-        public IActionResult GetProductsByStoreName([FromQuery] string storeName)
+        [HttpGet("{id}", Name = "GetProduct")]
+        public IActionResult GetProduct(Guid id)
         {
-            var productsByStore = _productsRepository.GetProductsByStoreName(storeName).ToList();
+            var product = _productsRepository.GetProductById(id);
 
-            if (productsByStore.Count <= 0)
-                return NotFound("Nenhum dado encontrado");
+            var productToGet = _mapper.Map<ProductToGet>(product);
 
-            var productsToGet = _mapper.Map<IEnumerable<ProductDto>>(productsByStore);
-
-            return Ok(productsToGet);
+            return Ok(productToGet);
         }
 
         [HttpPost()]
@@ -46,28 +37,60 @@ namespace GeekBurger.Products.Controllers
 
             var product = _mapper.Map<Product>(productToAdd);
 
-            //if (product.StoreId == Guid.Empty)
-            //    return new
-            //        Helper.UnprocessableEntityResult(ModelState);
+            if (product.StoreId == Guid.Empty)
+                return new Helper.UnprocessableEntityResult(ModelState);
 
             _productsRepository.Add(product);
             _productsRepository.Save();
-            var productToGet = _mapper.Map<ProductDto>(product);
+
+            var productToGet = _mapper.Map<ProductToGet>(product);
 
             return CreatedAtRoute("GetProduct",
                 new { id = productToGet.ProductId },
                 productToGet);
         }
 
-        [HttpGet("{id}", Name = "GetProduct")]
-        public IActionResult GetProduct(Guid id)
+        [HttpPatch("{id}")]
+        public IActionResult PartiallyUpdateProduct(Guid id, [FromBody] JsonPatchDocument<ProductToUpsert> productPatch)
         {
-            var product = _productsRepository.GetProductById(id);
-            var productToGet = _mapper.Map<ProductDto>(product);
+            Product product;
 
-            return Ok(productToGet);
+            if (productPatch == null)
+                return BadRequest();
+
+            product = _productsRepository.GetProductById(id);
+
+            if (id == null || product == null)
+            {
+                return NotFound();
+            }
+
+            var productToUpdate = _mapper.Map<ProductToUpsert>(product);
+            productPatch.ApplyTo(productToUpdate);
+
+            product = _mapper.Map(productToUpdate, product);
+
+            if (product.StoreId == Guid.Empty)
+                return new Helper.UnprocessableEntityResult(ModelState);
+            
+            _productsRepository.Update(product);
+            _productsRepository.Save();
+
+            var productToGet = _mapper.Map<ProductToGet>(product);
+
+            return CreatedAtRoute("GetProduct",
+                new { id = productToGet.ProductId },
+                productToGet);
         }
 
-    }
+        [HttpDelete("{id}")]
+        public IActionResult Delete(Guid id)
+        {
+            var product = _productsRepository.GetProductById(id);
 
+            _productsRepository.Delete(product);
+            _productsRepository.Save();
+            return NoContent();
+        }
+    }
 }
