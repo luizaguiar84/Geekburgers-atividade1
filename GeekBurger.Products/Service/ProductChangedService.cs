@@ -23,8 +23,11 @@ namespace GeekBurger.Products.Service
         private CancellationTokenSource _cancelMessages;
         private IServiceProvider _serviceProvider { get; }
 
-        public ProductChangedService(IMapper mapper, 
-            IConfiguration configuration, ILogService logService, IServiceProvider serviceProvider)
+        public ProductChangedService(
+            IMapper mapper, 
+            IConfiguration configuration,
+            ILogService logService, 
+            IServiceProvider serviceProvider)
         {
             _mapper = mapper;
             _configuration = configuration;

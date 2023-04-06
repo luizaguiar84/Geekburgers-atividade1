@@ -1,6 +1,7 @@
 using GeekBurger.Products.ExtensionMethods;
 using GeekBurger.Products.Repositories;
 using GeekBurger.Products.Service;
+using Microsoft.Azure.Management.ServiceBus.Fluent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
@@ -11,7 +12,11 @@ namespace GeekBurger.Products
     {
         public static IConfiguration Configuration;
         public IHostingEnvironment HostingEnvironment;
+        private const string TopicName = "ProductChangedTopic";
+        private const string SubscriptionName = "paulista_store";
 
+        
+        
         public Startup(IConfiguration configuration, IHostingEnvironment env)
         {
             Configuration = configuration;
@@ -76,6 +81,37 @@ namespace GeekBurger.Products
             }
 
             productsDbContext.Seed();
+            
+            
+            //var serviceBusNamespace = Configuration.GetServiceBusNamespace();
+            //SubscribeToTopic(serviceBusNamespace);
+        }
+
+        private static void SubscribeToTopic(IServiceBusNamespace serviceBusNamespace)
+        {
+            if (!serviceBusNamespace.Topics.List()
+                    .Any(t => t.Name
+                        .Equals(TopicName, StringComparison.InvariantCultureIgnoreCase)))
+            {
+                serviceBusNamespace.Topics
+                    .Define(TopicName)
+                    .WithSizeInMB(1024)
+                    .Create();
+            }
+
+            var topic = serviceBusNamespace.Topics.GetByName(TopicName);
+
+            if (topic.Subscriptions.List()
+                .Any(subscription => subscription.Name
+                    .Equals(SubscriptionName,
+                        StringComparison.InvariantCultureIgnoreCase)))
+            {
+                topic.Subscriptions.DeleteByName(SubscriptionName);
+            }
+
+            topic.Subscriptions
+                .Define(SubscriptionName)
+                .Create();
         }
     }
 }

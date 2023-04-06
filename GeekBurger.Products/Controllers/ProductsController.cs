@@ -2,6 +2,7 @@ using AutoMapper;
 using GeekBurger.Products.Contract;
 using GeekBurger.Products.Models;
 using GeekBurger.Products.Repositories;
+using GeekBurger.Products.Service;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,13 +11,19 @@ namespace GeekBurger.Products.Controllers
     [Route("api/product")]
     public class ProductController : Controller
     {
-        private IProductsRepository _productsRepository;
-        private IMapper _mapper;
+        private readonly IProductsRepository _productsRepository;
+        private readonly IMapper _mapper;
+        private readonly IProductChangedService _productChangedService;
 
-        public ProductController(IProductsRepository productsRepository, IStoreRepository storeRepository, IMapper mapper)
+        public ProductController(
+            IProductsRepository productsRepository, 
+            IStoreRepository storeRepository, 
+            IMapper mapper, 
+            IProductChangedService productChangedService)
         {
             _productsRepository = productsRepository;
             _mapper = mapper;
+            _productChangedService = productChangedService;
         }
 
         [HttpGet("{id}", Name = "GetProduct")]
@@ -42,6 +49,8 @@ namespace GeekBurger.Products.Controllers
 
             _productsRepository.Add(product);
             _productsRepository.Save();
+
+            _productChangedService.SendMessagesAsync();
 
             var productToGet = _mapper.Map<ProductToGet>(product);
 
